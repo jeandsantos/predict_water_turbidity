@@ -1,8 +1,16 @@
+# Background
+
+This is part of the [*Sustainable Industry: Rinse Over Run*](https://www.drivendata.org/competitions/56/predict-cleaning-time-series/) competition hosted by [DrivenData](https://www.drivendata.org/)
+
 # Objective
 
 Create a model that predicts the turbidity in the last rinsing phase of a clean-in-place (CIP) process in order to help minimize the use of water, energy and time, while ensuring high cleaning standards.
 
 Predict the quantity of turbidity—the level of product traces or suspended solids in the effluent—that will be returned in last rinsing phase during the cleaning of food and beverage industrial equipment. Depending on the expected level of turbidity, the cleaning station operator can adjust the length of the final rinse accordingly, enabling high cleaning standards while minimizing unnecessary use of water and chemicals.
+
+# Data
+
+The datasets can be downloaded from the [competition site](https://www.drivendata.org/competitions/56/predict-cleaning-time-series/data/).
 
 ## Metadata
 
