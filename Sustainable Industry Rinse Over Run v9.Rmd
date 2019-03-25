@@ -1,0 +1,1379 @@
+---
+title: "Sustainable Industry: Rinse Over Run"
+author: "Jean Dos Santos"
+date: "17 February 2019"
+output:
+  html_document:
+    code_folding: show
+    df_print: paged
+    highlight: tango
+    number_sections: yes
+    rows.print: 10
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, error = FALSE, warning = FALSE, comment = NA, fig.align = 'center')
+options(scipen=99999, digits = 5)
+```
+
+**Sustainable Industry: Rinse Over Run**
+
+Efficient cleaning of production equipment is vital in the Food & Beverage industry. Strict industry cleaning standards apply to the presence of particles, bacteria, allergens, and other potentially dangerous materials. At the same time, the execution of cleaning processes requires substantial resources in the form of time and cleaning supplies (e.g. water, caustic soda, acid, etc.).
+
+Given these concerns, the cleaning stations inspect the turbidity—product traces or suspended solids in the effluent—remaining during the final rinse. In this way, turbidity serves as an important indicator of the efficiency of a cleaning process. Depending on the expected level of turbidity, the cleaning station operator can either extend the final rinse (to eliminate remaining turbidity) or shorten it (saving time and water consumption).
+
+The goal of this competition is to predict turbidity in the last rinsing phase in order to help minimize the use of water, energy and time, while ensuring high cleaning standards.
+
+
+# Problem description
+
+The objective of this competition is to predict the quantity of turbidity—the level of product traces or suspended solids in the effluent—that will be returned in last rinsing phase during the cleaning of food and beverage industrial equipment. Depending on the expected level of turbidity, the cleaning station operator can adjust the length of the final rinse accordingly, enabling high cleaning standards while minimizing unnecessary use of water and chemicals.
+
+# Overview
+
+This competition will include two stages.
+
+## Stage 1: Prediction Competition
+
+The Clean-In-Place (CIP) processes constitute a method of cleaning production objects without disassembly. Within the CIP station, the cleaning material is stored in cleaning tanks connected to food and beverage production objects through different outlet and return pipelines.
+
+Each process has up to five sequential phases:
+
+    Pre-rinse phase: Rinse water is pushed into the cleaning object
+    Caustic phase: Caustic soda is pushed into the cleaning object
+    Intermediate rinse phase: Clean or rinse water is pushed into the object
+    Acid phase: Nitric acid is pushed into the cleaning object
+    Final rinse phase: Clean water is pushed into the object
+
+For each cleaning process, you are given time series measurements, sampled every two seconds, as well as relevant metadata.
+
+**Your job is to predict the final_rinse_total_turbidity_liter, the total quantity of turbidity returned during the final rinsing phase multiplied by the outgoing flow during the final rinsing, for each cleaning process.**
+
+In the train set, you are given all available data for each cleaning process. However, in the test set you are only given data from select previous phases (up to a given time, t) and then asked to predict into the future.
+
+    For 10% of the test instances, t corresponds to the end of the first (pre-rinse) phase.
+    For 30% of the test instances, t corresponds to the end of the second (caustic) phase.
+    For 30% of the test instances, t corresponds to the end of the third (intermediate rinse) phase.
+    For 30% of the test instances, t corresponds to the end of the fourth (acid) phase.
+
+**Note: you may not use future data in making your predictions**. The train and test sets are split in time (i.e. all the observations in the test set occur after the train set) so you may use all of the training set in making your predictions. However, you must be careful not to use any of the time series information provided in the test set that is future to the process being predicted.
+
+## Stage 2: Modeling Report Competition
+
+In addition to getting the best possible predictions on turbidity, Schneider Electric is interested in getting a deeper understanding of the quantitiative patterns that drive the performance of top algorithms. Specifically, they are interested in understanding which signal(s) at which moment(s) is/are mainly responsible of the presence of turbidity during the final rinse. Explanations of how outcomes are influenced by measurements earlier in the process can facilitate communication with process managers and potentially inform corrective actions.
+
+In Stage 2, the top 15 finalists from Stage 1 will be invited to submit brief reports that analyze quantitative patterns in the data and help illuminate the factors that influence outcomes. Each report will consist of up to 10 slides, delivered in PDF format. The final prizes will be awarded to the top 3 reports selected by a panel of judges including domain and data experts from Schneider Electric.
+
+The judging panel will evaluate each report based on the following criteria, to be confirmed at the outset of Stage 2:
+
+    Rigor: To what extent is the report built on sound, sophisticated quantititive analysis and a performant statistical model?
+    Clarity: How clearly are underlying patterns exposed, communicated, and visualized?
+    Insight: How useful are the contents of the report for understanding the dynamics of the system and informing action?
+
+Note: The judging will be done primarily on a technical basis, rather than on language (since many participants may not be native English speakers).
+
+## Datasets
+
+`train_values.csv` and `test_values.csv` contain metadata on the cleaning process, phase, and object as well as time series measurements, sampled every 2 seconds. The time series data pertain to the monitoring and control of different cleaning process variables in both supply and return Clean-In-Place lines as well as in cleaning material tanks during the cleaning operations.
+
+### Metadata
+
+`process_id` - Process ID
+`object_id` - Object ID
+`phase` - Phase of the cleaning process
+`timestamp` - Timestamp of measurement
+`pipeline` - Pipeline name
+
+### Clean-In-Place Measurements
+
+`supply_flow` - Measure of the flow of the fluid entering the pipeline
+`supply_pressure` - Pressure in bar of the cleaning agents in the supply line
+`return_temperature` - Temperature in degrees Celsius of cleaning agents in the return line
+`return_conductivity` - Conductivity in millisiemens of cleaning agents in the return line
+`return_turbidity` - Turbidity in NTU of cleaning agents in the return line
+`return_flow` - Flow in liter per hour of cleaning agents in the return line
+`supply_pump` - State (Boolean) of the supply pump on the supply line
+`supply_pre_rinse` - State (Boolean) of the pre rinse valve on the supply line
+`supply_caustic` - State (Boolean) of the caustic valve on supply line
+`return_caustic` - State (Boolean) of the caustic valve on return line
+`supply_acid` - State (Boolean) of the acid valve on supply line
+`return_acid` - State (Boolean) of the acid valve on return line
+`supply_clean_water` - State (Boolean) of the clean water valve on supply line
+`return_recovery_water` - State (Boolean) of the recovery water valve on return line
+`return_drain` - State (Boolean) of the drain valve on return line
+`object_low_level` - Presence (Boolean) of liquid in the cleaning object (for example, liquid will remain if the pump on the CIP return line did not fully purge the object)
+`tank_level_pre_rinse` - Level in percentage of the pre rinse tank
+`tank_level_caustic` - Level in percentage of the caustic tank
+`tank_level_acid` - Level in percentage of the acid tank
+`tank_level_clean_water` - Level in percentage of the clean water tank
+`tank_temperature_pre_rinse` - Temperature in degrees Celsius in the water recovery tank
+`tank_temperature_caustic` - Temperature in degrees Celsius in the caustic tank
+`tank_temperature_acid` - Temperature in degrees Celsius in the acid tank
+`tank_concentration_caustic` - Concentration in millisiemens in the caustic tank
+`tank_concentration_acid` - Concentration in millisiemens in the acid tank
+`tank_lsh_caustic` - State (Boolean) of the High Level Switch of the acid tank (used to determine if the tank is full or not)
+`tank_lsh_acid` - State (Boolean) of the High Level Switch of the acid tank (used to determine if the tank is full or not)
+`tank_lsh_clean_water` - State (Boolean) of the High Level Switch of the clean water tank (used to determine if the tank is full or not)
+`tank_lsh_pre_rinse` - State (Boolean) of the High Level Switch of the pre rinse tank (used to determine if the tank is full or not)
+`target_time_period` - Indicator (Boolean) of if the observation is included when calculating the target variable.
+
+
+`train_labels.csv` contains the target variable, `final_rinse_total_turbidity_liter`. This is defined as the quantity of turbidity returned multiplied by the outgoing flow during the `target_time_period.` The target time period is the portion of the final rinse phase when the return caustic and return acid valves have been closed for the last time. 
+
+Every `process_id` in the training values data has a corresponding `final_rinse_total_turbidity_liter` label in this file. The calculation for the target variable is as follows: `sum(max(0, return_flow) * return_turbidity)` where `target_time_period=True`.
+
+
+## Performance metric
+
+The performance metric is a variant of **mean absolute percentage error**, called **mean adjusted absolute percent error**.
+
+For each cleaning process (`process_id)`, the adjusted absolute percent error is written as follows:
+
+`APEi = |y^i−yi| / max(|yi|,threshold)`
+
+where y is the actual quantity of turbidity returned during the final rinsing, y^ is the predicted quantity of turbidity returned during the final rinsing, and the threshold is 290,000 NTU L. The use of the threshold ensures that predictions on smaller values are not excessively penalized.
+
+The overall metric, mean adjusted absolute percent error, is the average of APEi over all test instances, where
+
+`MAPE = 1/N * ∑ |y^i−yi| / max(|yi|,290000)`
+
+N - The total number of turbidity predictions submitted
+y^ - The predicted turbidity value
+y - The actual turbidity value
+
+
+
+# Import Data
+
+```{r}
+iteration <- 9
+
+library(readr)
+raw_training <- read_csv(file = "train_values.zip")
+training_labels <- read_csv(file = "train_labels.csv")
+# str(raw_training)
+```
+
+# Data Preparation
+
+## Process Metadata
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse, verbose = F, quietly = T))
+
+recipe_metadata <- read_csv(file = "recipe_metadata.csv")
+recipe_metadata$final_rinse <- NULL
+
+recipe_metadata$steps <- rowSums(recipe_metadata[,-1])
+recipe_metadata$profile <- factor(apply(recipe_metadata[,2:5], MARGIN = 1, FUN = paste0, collapse = ""))
+
+# table(recipe_metadata$profile)
+# table(recipe_metadata$steps)
+
+colnames(recipe_metadata)[-1] <- paste0("recipe_", colnames(recipe_metadata)[-1])
+
+recipe_metadata$process_id <- factor(x = recipe_metadata$process_id)
+recipe_metadata$recipe_pre_rinse <- NULL # factor(x = recipe_metadata$recipe_pre_rinse)
+recipe_metadata$recipe_caustic <- factor(x = recipe_metadata$recipe_caustic)
+recipe_metadata$recipe_intermediate_rinse <- factor(x = recipe_metadata$recipe_intermediate_rinse)
+recipe_metadata$recipe_acid <- factor(x = recipe_metadata$recipe_acid)
+
+# glimpse(recipe_metadata)
+summary(recipe_metadata)
+
+```
+
+## Process Data
+
+```{r}
+training <- raw_training
+library(tidyverse, quietly = T, verbose = F)
+library(plyr, quietly = T, verbose = F)
+# install.packages("doParallel")
+library(parallel, quietly = T, verbose = F); 
+library(doParallel, quietly = T, verbose = F); 
+
+pre_process_data <- function(data, add_labels = T, labels = NULL, nzv = F) {
+  
+  # remove pipeline L12 not in test data
+  data <- data %>% 
+    filter(pipeline != "L12") %>% 
+    filter(phase != "final_rinse")
+  
+  # Factorize Categorical Variables
+  data$process_id <- factor(data$process_id)
+  data$phase <- factor(data$phase)
+  data$pipeline <- factor(data$pipeline)
+  data$object_id <- factor(data$object_id) 
+  
+  data$supply_pump <- ifelse(test = data$supply_pump == "True", yes = 1, no = 0)
+  data$supply_pre_rinse <- ifelse(test = data$supply_pre_rinse == "True", yes = 1, no = 0)
+  data$supply_caustic <- ifelse(test = data$supply_caustic == "True", yes = 1, no = 0)
+  data$return_caustic <- ifelse(test = data$return_caustic == "True", yes = 1, no = 0)
+  data$supply_acid <- ifelse(test = data$supply_acid == "True", yes = 1, no = 0)
+  data$return_acid <- ifelse(test = data$return_acid == "True", yes = 1, no = 0)
+  data$supply_clean_water <- ifelse(test = data$supply_clean_water == "True", yes = 1, no = 0)
+  data$return_recovery_water <- ifelse(test = data$return_recovery_water == "True", yes = 1, no = 0)
+  data$return_drain <- ifelse(test = data$return_drain == "True", yes = 1, no = 0)
+  data$object_low_level <- ifelse(test = data$object_low_level == "True", yes = 1, no = 0)
+  
+  data$tank_lsh_caustic <- ifelse(test = data$tank_lsh_caustic == "True", yes = 1, no = 0)
+  data$tank_lsh_clean_water <- ifelse(test = data$tank_lsh_clean_water == "True", yes = 1, no = 0)
+  data$target_time_period <- ifelse(test = data$target_time_period == "True", yes = 1, no = 0)
+  
+  # Remove zero variance predictors
+  data$tank_lsh_pre_rinse <- NULL # LSH = Low Switch High
+  data$tank_lsh_acid <- NULL # LSH = Low Switch High
+  data$target_time_period <- NULL
+  
+  # calculate summary statistics for each phase
+  data_processed <- plyr::ddply(.data = data, 
+              .variables = ~process_id+phase, 
+              .fun = summarise, 
+                  Length = length(unique(row_id)),
+                  supply_flow_avg = mean(supply_flow, na.rm = T), 
+                  supply_flow_sd = sd(supply_flow, na.rm = T),
+                  supply_flow_min = min(supply_flow, na.rm = T),
+                  supply_flow_max = max(supply_flow, na.rm = T),
+                  supply_pressure_avg = mean(supply_pressure, na.rm = T), 
+                  supply_pressure_sd = sd(supply_pressure, na.rm = T),
+                  supply_pressure_min = min(supply_pressure, na.rm = T),
+                  supply_pressure_max = max(supply_pressure, na.rm = T),
+                  return_temperature_avg = mean(return_temperature, na.rm = T), 
+                  return_temperature_sd = sd(return_temperature, na.rm = T),
+                  return_temperature_min = min(return_temperature, na.rm = T),
+                  return_temperature_max = max(return_temperature, na.rm = T),
+                  return_conductivity_avg = mean(return_conductivity, na.rm = T), 
+                  return_conductivity_sd = sd(return_conductivity, na.rm = T),
+                  return_conductivity_min = min(return_conductivity, na.rm = T),
+                  return_conductivity_max = max(return_conductivity, na.rm = T),
+                  return_turbidity_avg = mean(return_turbidity, na.rm = T), 
+                  return_turbidity_sd = sd(return_turbidity, na.rm = T),
+                  return_turbidity_min = min(return_turbidity, na.rm = T),
+                  return_turbidity_max = max(return_turbidity, na.rm = T),
+                  return_flow_avg = mean(return_flow, na.rm = T), 
+                  return_flow_sd = sd(return_flow, na.rm = T),
+                  return_flow_min = min(return_flow, na.rm = T),
+                  return_flow_max = max(return_flow, na.rm = T),
+                  tank_level_pre_rinse_avg = mean(tank_level_pre_rinse, na.rm = T), 
+                  tank_level_pre_rinse_sd = sd(tank_level_pre_rinse, na.rm = T),
+                  tank_level_pre_rinse_min = min(tank_level_pre_rinse, na.rm = T),
+                  tank_level_pre_rinse_max = max(tank_level_pre_rinse, na.rm = T),
+                  tank_level_caustic_avg = mean(tank_level_caustic, na.rm = T), 
+                  tank_level_caustic_sd = sd(tank_level_caustic, na.rm = T),
+                  tank_level_caustic_min = min(tank_level_caustic, na.rm = T),
+                  tank_level_caustic_max = max(tank_level_caustic, na.rm = T),
+                  tank_level_acid_avg = mean(tank_level_acid, na.rm = T), 
+                  tank_level_acid_sd = sd(tank_level_acid, na.rm = T),
+                  tank_level_acid_min = min(tank_level_acid, na.rm = T),
+                  tank_level_acid_max = max(tank_level_acid, na.rm = T),
+                  tank_level_clean_water_avg = mean(tank_level_clean_water, na.rm = T), 
+                  tank_level_clean_water_sd = sd(tank_level_clean_water, na.rm = T),
+                  tank_level_clean_water_min = min(tank_level_clean_water, na.rm = T),
+                  tank_level_clean_water_max = max(tank_level_clean_water, na.rm = T),
+                  tank_temperature_pre_rinse_avg = mean(tank_temperature_pre_rinse, na.rm = T), 
+                  tank_temperature_pre_rinse_sd = sd(tank_temperature_pre_rinse, na.rm = T),
+                  tank_temperature_pre_rinse_min = min(tank_temperature_pre_rinse, na.rm = T),
+                  tank_temperature_pre_rinse_max = max(tank_temperature_pre_rinse, na.rm = T),
+                  tank_temperature_caustic_avg = mean(tank_temperature_caustic, na.rm = T), 
+                  tank_temperature_caustic_sd = sd(tank_temperature_caustic, na.rm = T),
+                  tank_temperature_caustic_min = min(tank_temperature_caustic, na.rm = T),
+                  tank_temperature_caustic_max = max(tank_temperature_caustic, na.rm = T),
+                  tank_temperature_acid_avg = mean(tank_temperature_acid, na.rm = T), 
+                  tank_temperature_acid_sd = sd(tank_temperature_acid, na.rm = T),
+                  tank_temperature_acid_min = min(tank_temperature_acid, na.rm = T),
+                  tank_temperature_acid_max = max(tank_temperature_acid, na.rm = T),
+                  tank_concentration_caustic_avg = mean(tank_concentration_caustic, na.rm = T), 
+                  tank_concentration_caustic_sd = sd(tank_concentration_caustic, na.rm = T),
+                  tank_concentration_caustic_min = min(tank_concentration_caustic, na.rm = T),
+                  tank_concentration_caustic_max = max(tank_concentration_caustic, na.rm = T),
+                  tank_concentration_acid_avg = mean(tank_concentration_acid, na.rm = T), 
+                  tank_concentration_acid_sd = sd(tank_concentration_acid, na.rm = T),
+                  tank_concentration_acid_min = min(tank_concentration_acid, na.rm = T),
+                  tank_concentration_acid_max = max(tank_concentration_acid, na.rm = T),
+                  supply_pump_avg = mean(supply_pump, na.rm = T), 
+                  supply_pre_rinse_avg = mean(supply_pre_rinse, na.rm = T), 
+                  supply_caustic_avg = mean(supply_caustic, na.rm = T), 
+                  return_caustic_avg = mean(return_caustic, na.rm = T), 
+                  supply_acid_avg = mean(supply_acid, na.rm = T), 
+                  return_acid_avg = mean(return_acid, na.rm = T), 
+                  supply_clean_water_avg = mean(supply_clean_water, na.rm = T), 
+                  return_recovery_water_avg = mean(return_recovery_water, na.rm = T), 
+                  return_drain_avg = mean(return_drain, na.rm = T), 
+                  object_low_level_avg = mean(object_low_level, na.rm = T), 
+                  tank_lsh_caustic_avg = mean(tank_lsh_caustic, na.rm = T), 
+                  tank_lsh_clean_water_avg = mean(tank_lsh_clean_water, na.rm = T)
+              ) %>% 
+  gather(key = "key", value = "value", -c("process_id", "phase"), na.rm = F) %>% 
+  mutate(parameter = paste0(phase, "_", key)) %>% 
+  select(-phase, -key) %>% 
+  spread(key = "parameter", value = "value")
+  
+  # Replace NA values with 0
+  data_processed[is.na(data_processed)] <- 0
+
+  if (nzv == T) {
+    # Remove near-zero variance variables
+    near_zero_variables <- caret::nearZeroVar(x = data_processed)
+    data_processed <- data_processed[, -near_zero_variables]
+  } 
+  
+  # Select categorical variables
+  data_categorical <- data %>% 
+  select(process_id, pipeline, object_id) %>% # 
+  distinct()
+  
+  # data_categorical$process_id <- factor(data_categorical$process_id)
+  # data_processed$process_id <- factor(data_processed$process_id)
+  
+  # Join datasets
+  data_final <- dplyr::full_join(x = data_categorical, y = data_processed, "process_id")
+
+  if(add_labels == T) {
+    # Add labels
+    labels$process_id <- factor(labels$process_id)
+    data_final <- dplyr::left_join(x = data_final, y = labels, "process_id")  
+  }
+
+  return(data_final)
+
+}
+
+training_data_final <- pre_process_data(data = raw_training, labels = training_labels, nzv = T)
+
+training_data_final <- dplyr::left_join(x = training_data_final, y = recipe_metadata, "process_id")
+
+training_data_final$process_id <- NULL
+
+# colnames(training_data_final)
+```
+
+
+```{r}
+# training_data_final$final_rinse_total_turbidity_liter <- log10(training_data_final$final_rinse_total_turbidity_liter)
+# training_data_final$final_rinse_total_turbidity_liter
+```
+
+```{r}
+hist(training_data_final$final_rinse_total_turbidity_liter)
+
+abs(cor(x = training_data_final$final_rinse_total_turbidity_liter, y = training_data_final[, sapply(X = training_data_final[1,], is.numeric)])) %>% t() %>% data.frame() %>% rownames_to_column() %>% arrange(desc(.))
+
+hist(abs(cor(x = training_data_final$final_rinse_total_turbidity_liter, y = training_data_final[, sapply(X = training_data_final[1,], is.numeric)])))
+
+```
+
+## Data Augmentation
+
+```{r}
+library(tidyselect, quietly = T, verbose = F)
+set.seed(1)
+training_data_final$RAND <- runif(nrow(training_data_final), min = 0, max = 1)
+
+Set1_training_data_final <- Set2_training_data_final <- Set3_training_data_final <- Set4_training_data_final<- training_data_final
+
+### Set 1
+# For 25% of the test instances, t corresponds to the end of the first (pre-rinse) phase. 
+Set1_training_data_final[(Set1_training_data_final$RAND >= 0.0 & Set1_training_data_final$RAND < 0.25), 
+                       vars_select(.vars = colnames(Set1_training_data_final), starts_with(match = "caustic_"))] <- 0
+Set1_training_data_final[(Set1_training_data_final$RAND >= 0.0 & Set1_training_data_final$RAND < 0.25), 
+                       vars_select(.vars = colnames(Set1_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set1_training_data_final[(Set1_training_data_final$RAND >= 0.0 & Set1_training_data_final$RAND < 0.25), 
+                       vars_select(.vars = colnames(Set1_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the second (caustic) phase. 
+Set1_training_data_final[(Set1_training_data_final$RAND >= 0.25 & Set1_training_data_final$RAND < 0.5), 
+                       vars_select(.vars = colnames(Set1_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set1_training_data_final[(Set1_training_data_final$RAND >= 0.25 & Set1_training_data_final$RAND < 0.5), 
+                       vars_select(.vars = colnames(Set1_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the third (intermediate rinse) phase.
+Set1_training_data_final[(Set1_training_data_final$RAND >= 0.50 & Set1_training_data_final$RAND < 0.75), 
+                       vars_select(.vars = colnames(Set1_training_data_final), starts_with(match = "acid_"))] <- 0
+# For 25% of the test instances, t corresponds to the end of the fourth (acid) phase.
+# -----------------------------
+
+### Set2
+# For 25% of the test instances, t corresponds to the end of the first (pre-rinse) phase. 
+Set2_training_data_final[(Set2_training_data_final$RAND >= 0.25 & Set2_training_data_final$RAND < 0.50), 
+                       vars_select(.vars = colnames(Set2_training_data_final), starts_with(match = "caustic_"))] <- 0
+Set2_training_data_final[(Set2_training_data_final$RAND >= 0.25 & Set2_training_data_final$RAND < 0.50), 
+                       vars_select(.vars = colnames(Set2_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set2_training_data_final[(Set2_training_data_final$RAND >= 0.25 & Set2_training_data_final$RAND < 0.50), 
+                       vars_select(.vars = colnames(Set2_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the second (caustic) phase. 
+Set2_training_data_final[(Set2_training_data_final$RAND >= 0.50 & Set2_training_data_final$RAND < 0.75), 
+                       vars_select(.vars = colnames(Set2_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set2_training_data_final[(Set2_training_data_final$RAND >= 0.50 & Set2_training_data_final$RAND < 0.75), 
+                       vars_select(.vars = colnames(Set2_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the third (intermediate rinse) phase.
+Set2_training_data_final[(Set2_training_data_final$RAND >= 0.75 & Set2_training_data_final$RAND < 1.00), 
+                       vars_select(.vars = colnames(Set2_training_data_final), starts_with(match = "acid_"))] <- 0
+# For 25% of the test instances, t corresponds to the end of the fourth (acid) phase.
+# -----------------------------
+
+### Set3
+# For 25% of the test instances, t corresponds to the end of the first (pre-rinse) phase. 
+Set3_training_data_final[(Set3_training_data_final$RAND >= 0.50 & Set3_training_data_final$RAND < 0.75), 
+                       vars_select(.vars = colnames(Set3_training_data_final), starts_with(match = "caustic_"))] <- 0
+Set3_training_data_final[(Set3_training_data_final$RAND >= 0.50 & Set3_training_data_final$RAND < 0.75), 
+                       vars_select(.vars = colnames(Set3_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set3_training_data_final[(Set3_training_data_final$RAND >= 0.50 & Set3_training_data_final$RAND < 0.75), 
+                       vars_select(.vars = colnames(Set3_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the second (caustic) phase. 
+Set3_training_data_final[(Set3_training_data_final$RAND >= 0.75 & Set3_training_data_final$RAND < 1.0), 
+                       vars_select(.vars = colnames(Set3_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set3_training_data_final[(Set3_training_data_final$RAND >= 0.75 & Set3_training_data_final$RAND < 1.0), 
+                       vars_select(.vars = colnames(Set3_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the third (intermediate rinse) phase.
+Set3_training_data_final[(Set3_training_data_final$RAND >= 0.0 & Set3_training_data_final$RAND < 0.25), 
+                       vars_select(.vars = colnames(Set3_training_data_final), starts_with(match = "acid_"))] <- 0
+# For 25% of the test instances, t corresponds to the end of the fourth (acid) phase.
+# -----------------------------
+
+### Set4
+# For 25% of the test instances, t corresponds to the end of the first (pre-rinse) phase. 
+Set4_training_data_final[(Set4_training_data_final$RAND >= 0.75 & Set4_training_data_final$RAND < 1.0), 
+                       vars_select(.vars = colnames(Set4_training_data_final), starts_with(match = "caustic_"))] <- 0
+Set4_training_data_final[(Set4_training_data_final$RAND >= 0.75 & Set4_training_data_final$RAND < 1.0), 
+                       vars_select(.vars = colnames(Set4_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set4_training_data_final[(Set4_training_data_final$RAND >= 0.75 & Set4_training_data_final$RAND < 1.0), 
+                       vars_select(.vars = colnames(Set4_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the second (caustic) phase. 
+Set4_training_data_final[(Set4_training_data_final$RAND >= 0.0 & Set4_training_data_final$RAND < 0.25), 
+                       vars_select(.vars = colnames(Set4_training_data_final), starts_with(match = "intermediate_rinse_"))] <- 0
+Set4_training_data_final[(Set4_training_data_final$RAND >= 0.0 & Set4_training_data_final$RAND < 0.25), 
+                       vars_select(.vars = colnames(Set4_training_data_final), starts_with(match = "acid_"))] <- 0
+
+# For 25% of the test instances, t corresponds to the end of the third (intermediate rinse) phase.
+Set4_training_data_final[(Set4_training_data_final$RAND >= 0.25 & Set4_training_data_final$RAND < 0.50), 
+                       vars_select(.vars = colnames(Set4_training_data_final), starts_with(match = "acid_"))] <- 0
+# For 25% of the test instances, t corresponds to the end of the fourth (acid) phase.
+# -----------------------------
+
+
+training_data_final <- bind_rows(Set1_training_data_final, Set2_training_data_final, Set3_training_data_final, Set4_training_data_final) # 
+training_data_final$RAND <- NULL
+
+training_data_final <- training_data_final %>% distinct()
+
+rm(Set1_training_data_final, Set2_training_data_final, Set3_training_data_final, Set4_training_data_final); gc(verbose = F)
+```
+
+
+
+```{r}
+library(caret, quietly = T, verbose = F)
+# summary(training_data_final)
+
+# descrCor <- cor(training_data_final[, sapply(X = training_data_final[1,], is.numeric)], use = "everything")
+
+# summary(descrCor[upper.tri(descrCor)])
+
+# hist(as.vector(descrCor))
+
+# highlyCorDescr <- findCorrelation(descrCor, cutoff = .99)
+
+# highlyCorDescr_Names <- colnames(training_data_final[,-1])[highlyCorDescr]
+# highlyCorDescr_Names
+
+# filteredDescr <- descrCor[,-highlyCorDescr]
+
+# training_data_final <- training_data_final[, !(colnames(training_data_final) %in% highlyCorDescr_Names)]
+
+# rm(highlyCorDescr, highlyCorDescr_Names, descrCor)
+```
+
+
+# Exploratory Data Analysis
+
+```{r fig.height=12, fig.width=12}
+summary(training_data_final$final_rinse_total_turbidity_liter)
+
+# hist(log10(training_data_final$final_rinse_total_turbidity_liter))
+# summary(log10(training_data_final$final_rinse_total_turbidity_liter))
+# 
+# hist(log(training_data_final$final_rinse_total_turbidity_liter))
+# summary(log(training_data_final$final_rinse_total_turbidity_liter))
+
+cor_matrix <- cor(training_data_final[, sapply(X = training_data_final[1,], is.numeric)], use = "complete.obs")
+ggcorrplot::ggcorrplot(cor_matrix) + theme(axis.text.y = element_text(size = 4), axis.text.x = element_text(size = 4))
+
+ggsave(filename = "Charts/Correlation_Matrix.png", device = "png", limitsize = F, scale = 2, dpi = "print")
+
+rm(cor_matrix)
+```
+
+```{r}
+# training_data_final$final_rinse_total_turbidity_liter_exp <- log(training_data_final$final_rinse_total_turbidity_liter)
+# training_data_final$final_rinse_total_turbidity_liter <- NULL
+```
+
+```{r}
+rm(training, raw_training); gc(verbose = F)
+```
+
+
+# Modelling
+
+## Creating a training and test set
+
+We will randomly select 90% of the samples from the data for the training set and use the remaining 20% for the test set.
+
+```{r}
+library(caret, quietly = T, verbose = F)
+library(tidyverse, quietly = T, verbose = F)
+library(plyr, quietly = T, verbose = F)
+library(tictoc, quietly = T, verbose = F)
+
+training_data_final$final_rinse_total_turbidity_liter_exp <- log(training_data_final$final_rinse_total_turbidity_liter)
+hist(training_data_final$final_rinse_total_turbidity_liter, freq = FALSE)
+hist(training_data_final$final_rinse_total_turbidity_liter_exp, freq = FALSE)
+
+training_data_final_outcome <- training_data_final$final_rinse_total_turbidity_liter
+training_data_final$final_rinse_total_turbidity_liter <- NULL
+
+# Create training and test set using stratified partioning
+set.seed(1)
+training_index <- createDataPartition(y = training_data_final$final_rinse_total_turbidity_liter_exp, p = 0.95)[[1]]
+training_set <- training_data_final[training_index, ]
+test_set <- training_data_final[-training_index, ]
+
+training_outcome <- training_data_final_outcome[training_index]
+test_outcome <- training_data_final_outcome[training_index]
+
+# Check distributtion of final_rinse_total_turbidity_liter_exp on training set and test set
+par(mfrow = c(1, 2))
+hist(training_set$final_rinse_total_turbidity_liter_exp, main = "Training Set", xlab = "Total Turbidity", freq = FALSE)
+hist(test_set$final_rinse_total_turbidity_liter_exp, main = "Test Set", xlab = "Total Turbidity", freq = FALSE)
+
+summary(training_set$final_rinse_total_turbidity_liter_exp)
+summary(test_set$final_rinse_total_turbidity_liter_exp)
+
+prop.table(summary(training_set$pipeline))*100
+prop.table(summary(test_set$pipeline))*100
+
+# length(unique(test_set$object_id))
+
+# round(prop.table(summary(training_set$object_id))*100,2)
+# round(prop.table(summary(test_set$object_id))*100,2)
+```
+
+The distribution of outcome values on both the training and test set are similar.
+
+## Training Parameters
+
+Parameter tuning and selection will be done using repeated 10-fold cross-validation. Each round of cross-validation will be repeated 5 times. Adaptive resampling will be used with more computationally demanding algorithms. Computationally demanding algorithms with several hyperparameters will use adaptive resampling with random search. 
+
+
+```{r}
+CV_folds <- 5
+CV_repeats <- 1
+minimum_resampling <- 3
+
+library(Metrics)
+library(ModelMetrics)
+
+# Custom Summary Function
+MAPE_train <- function (data,
+                 lev = NULL,
+                 model = NULL) {
+
+  mape <- function(actual, predicted) {
+    
+    return(mean((abs(actual - predicted)/max(actual, log(290000))), na.rm = T))
+  }
+
+   out <- c(mape(actual = data[, "obs"], predicted = data[, "pred"]),
+            caret:::RMSE(obs = data[, "obs"], pred = data[, "pred"], na.rm = T),
+            caret:::R2(obs = data[, "obs"], pred = data[, "pred"]) #,
+            # cor(data[, "obs"], data[, "pred"])^2
+            )
+   names(out) <- c("MAPE", 
+                   "RMSE", 
+                   "R2"
+                   )
+   out
+}
+
+# Training Options
+set.seed(1)
+# trainControl object for standard repeated cross-validation
+train_control <- caret::trainControl(method = "repeatedcv", number = CV_folds, repeats = CV_repeats, verboseIter = FALSE, returnData = FALSE, allowParallel = T, summaryFunction = MAPE_train) 
+
+# trainControl object for standard repeated cross-validation
+adapt_control_grid <- caret::trainControl(method = "adaptive_cv", number = CV_folds, repeats = CV_repeats, 
+                                     adaptive = list(min = minimum_resampling, # minimum number of resamples tested before model is excluded
+                                                     alpha = 0.05, # confidence level used to exclude parameter settings
+                                                     method = "gls", # generalized least squares
+                                                     complete = TRUE), 
+                                     search = "grid", # execute grid search
+                                     verboseIter = FALSE, returnData = FALSE, allowParallel = T, summaryFunction = MAPE_train) 
+
+adapt_control_random <- caret::trainControl(method = "adaptive_cv", number = CV_folds, repeats = CV_repeats, 
+                                     adaptive = list(min = minimum_resampling, # minimum number of resamples tested before model is excluded
+                                                     alpha = 0.05, # confidence level used to exclude parameter settings
+                                                     method = "gls", # generalized least squares
+                                                     complete = TRUE), 
+                                     search = "random", # execute random search
+                                     verboseIter = FALSE, returnData = FALSE, allowParallel = T, summaryFunction = MAPE_train) 
+```
+
+```{r}
+gc(verbose = F)
+```
+
+
+## Training Models
+
+Extreme Gradient Boosting (XGBoost) is similar to gradient boosting but has the capacity to do parallel computation on a single machine and perform regularization to avoid overfitting. It was developed by 
+Tianqi Chen.
+
+Additional advantages of the XGBoost algorithm include its internal cross-validation function, its ability to handle missing values, its flexibility and its ability to prune the tree until the improvement in loss function is below a threshold.
+
+Similar to GBM, XGBoost uses the errors of previous models to reduce them on the next iteration. The final model is a weighted combination of the models obtained on previous iterations.
+
+XGBoost has several tuning parameters some of which depend on the type of booster used (CART or generalized linear model) while others are general, regularization and learning task parameters.
+
+### XGBoost Linear
+
+#### GA
+
+```{r}
+library(caret)
+train_control_GA <- caret::trainControl(method = "repeatedcv", number = 3, repeats = 1, verboseIter = FALSE, returnData = FALSE, allowParallel = T, summaryFunction = MAPE_train) 
+
+# Create custom function for assessing solutions
+eval_function_XGboost_Linear <- function(x1,x2,x3,x4) {
+suppressWarnings(
+  # Create dataframe with proportion of each solid component
+  XGboost_Linear_model_GA <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                          data = training_set,
+                          method = "xgbLinear", 
+                          trControl = train_control_GA,
+                          verbose = F, metric = "MAPE", maximize = FALSE,
+                          silent = 1,
+                          tuneGrid = expand.grid(
+                                                nrounds = round(x1), # number of boosting iterations
+                                                eta = x2, # step size shrinkage, low value means model is more robust to overfitting
+                                                alpha = x3, # L1 Regularization (equivalent to Lasso Regression) on weights
+                                                lambda = x4 # L2 Regularization (equivalent to ridge Regression) on weights
+                                                ) 
+                          )
+)
+    
+    # print(system.time())
+    return(-XGboost_Linear_model_GA$results$RMSE)
+    
+}
+
+# eval_function(nrounds_min_max[1], max_depth_min_max[1], eta_min_max[1], gamma_min_max[1], colsample_byLinear_min_max[1], min_child_weight_min_max[1], subsample_min_max[1])
+# eval_function(50, max_depth_min_max[2], eta_min_max[2], gamma_min_max[2], colsample_byLinear_min_max[2], min_child_weight_min_max[2], subsample_min_max[2])
+
+suppressPackageStartupMessages(library(GA, quietly = T, verbose = F))
+
+# Define minimum and maximum values for each input
+nrounds_min_max <- c(300, 1.5*10^3)
+eta_min_max <- c(10^-4, 10)
+alpha_min_max <- c(10^-2, 1)
+lambda_min_max <- c(10^-2, 1)
+
+starting_point <- c(nrounds_min_max = mean(nrounds_min_max, na.rm = T),
+                    eta_min_max = mean(10^-2, na.rm = T),
+                    alpha_min_max = mean(alpha_min_max, na.rm = T),
+                    lambda_min_max = mean(lambda_min_max, na.rm = T))
+```
+
+
+```{r}
+# install.packages("doParallel")
+library(xgboost, quietly = T, verbose = F); library(caret, quietly = T, verbose = F); library(parallel, quietly = T, verbose = F); library(doParallel); library(tictoc)
+
+custom_monitor <- function (object, digits = getOption("digits"), ...) {
+  fitness <- na.exclude(object@fitness)
+  sumryStat <- c(mean(fitness), max(fitness))
+  sumryStat <- format(sumryStat, digits = digits)
+    
+  cat(paste("GA | iter =", object@iter, "| Mean =", sumryStat[1], "| Best =", sumryStat[2], "\n", " | x1 = ", object@solution[1], "| x2 = ", object@solution[2], "| x3 = ", object@solution[3], "| x4 = ", object@solution[4]))
+  cat("\n")
+  flush.console()
+}
+
+pop_size <- 6
+max_iter <- 50
+T0 <- Sys.time(); T0
+
+n_cores <- detectCores() # -1
+# cluster <- makeCluster(n_cores) # number of cores, convention to leave 1 core for OS
+# registerDoParallel(cluster); # register the parallel processing
+
+GA_model_XGboost_Linear <- GA::ga(type = "real-valued", 
+                                fitness = function(x) eval_function_XGboost_Linear(x[1],x[2],x[3],x[4]), 
+                                lower = c(nrounds_min_max[1], eta_min_max[1], alpha_min_max[1], lambda_min_max[1]),
+                                upper = c(nrounds_min_max[2], eta_min_max[2], alpha_min_max[2], lambda_min_max[2]),
+                                popSize = pop_size, 
+                                maxiter = max_iter, 
+                                monitor = custom_monitor,
+                                pmutation = 0.5,
+                                elitism = 0.5, 
+                                optim = TRUE,
+                                suggestions = starting_point,
+                                parallel = n_cores,
+                                seed = 1
+                                )
+T1 <- Sys.time(); T1
+T1-T0
+# stopCluster(cluster) # shut down the cluster 
+# registerDoSEQ(); #  force R to return to single threaded processing   
+
+summary(GA_model_XGboost_Linear)
+# plot(GA_model_XGboost_Linear)
+GA_model_XGboost_Linear@solution
+
+write.csv(x = GA_model_XGboost_Linear@solution, file = paste0("Models/GA_model_XGboost_Linear_Solution", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"), ".csv"))
+save(GA_model_XGboost_Linear, file = paste0("Models/GA_model_XGboost_Linear", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"), ".RData"))
+gc(verbose = F)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# install.packages("xgboost")
+library(xgboost); library(plyr)
+
+XGboost_Linear_grid <- expand.grid(
+                                  nrounds = round(GA_model_XGboost_Linear@solution[1]),  # step size shrinkage, low value means model is more robust to overfitting
+                                  eta = GA_model_XGboost_Linear@solution[2], # number of boosting iterations
+                                  alpha = GA_model_XGboost_Linear@solution[3], # L2 Regularization (Ridge Regression)
+                                  lambda = GA_model_XGboost_Linear@solution[4] # L1 Regularization (Lasso Regression)
+                                  )
+```
+
+
+```{r message=FALSE, warning=FALSE, prompt=FALSE, error=FALSE}
+# install.packages("doParallel")
+library(xgboost, quietly = T, verbose = F); library(caret, quietly = T, verbose = F); library(parallel, quietly = T, verbose = F); library(doParallel); library(tictoc)
+
+T0 <- Sys.time(); T0
+cluster <- makeCluster(detectCores()) #  - 1 # number of cores, convention to leave 1 core for OS
+registerDoParallel(cluster) # register the parallel processing
+
+set.seed(1)
+XGboost_Linear_model_GA <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                          data = training_set, 
+                          method = "xgbLinear",
+                          trControl = train_control,
+                          verbose = F, metric = "RMSE", maximize = FALSE,
+                          silent = 1,
+                          # tuneLength = 1
+                          tuneGrid = XGboost_Linear_grid
+                          )
+
+stopCluster(cluster) # shut down the cluster 
+registerDoSEQ() #  force R to return to single threaded processing
+T1 <- Sys.time(); T1
+T1-T0
+
+library(broom, quietly = T, verbose = F)
+XGboost_Linear_model_GA
+# xgb.importance(model = XGboost_Linear_model_GAfinalModel) %>%
+#   arrange(desc(Gain)) %>%
+#   ggplot(mapping = aes(x = reorder(Feature, Gain), y = Gain)) +
+#     geom_col(fill = "blue1", alpha = 0.8) +
+#     coord_flip() +
+#     labs(title = "XGboost_Linear: Variable Importance",
+#          x = "Variable",
+#          y = "Gain"
+#     ) +
+#     theme_bw() + theme(axis.text = element_text(size = 2), aspect.ratio = 2)
+# 
+# ggsave(filename = "Charts/variable_importance_XGboost_Linear_model_GA.png", device = "png", limitsize = F, scale = 2, dpi = "retina")
+
+# XGboost_Linear_model_GA$finalModel
+# plot(XGboost_Linear_model_GA)
+# summary(XGboost_Linear_model_GA$finalModel)
+# class(XGboost_Linear_model_GA$finalModel)
+
+variable_importance_XGboost_Linear_model_GA <- xgb.importance(model = XGboost_Linear_model_GA$finalModel)
+write.csv(x = variable_importance_XGboost_Linear_model_GA, file = paste0("Models/variable_importance_XGboost_Linear_model_GA","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".csv"))
+
+saveRDS(object = XGboost_Linear_model_GA, file = paste0("Models/XGboost_Linear_model_GA", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+saveRDS(object = XGboost_Linear_model_GA$finalModel, file = paste0("Models/XGboost_Linear_model_GA_", class(XGboost_Linear_model_GA$finalModel)[1],"_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+gc(verbose = F)
+```
+
+
+
+#### GS
+
+```{r}
+library(xgboost, quietly = T, verbose = F); library(caret, quietly = T, verbose = F); library(parallel, quietly = T, verbose = F); library(doParallel); library(tictoc); library(caret)
+
+XGboost_Linear_Grid <- expand.grid(
+                                  nrounds = c(500,1000), # number of boosting iterations
+                                  eta = 10^(-4:-2), # step size shrinkage, low value means model is more robust to overfitting
+                                  alpha = 10^(-3:0), # L1 Regularization (equivalent to Lasso Regression) on weights
+                                  lambda = 10^(-3:0) # L2 Regularization (equivalent to ridge Regression) on weights
+                                  )
+
+T0 <- Sys.time(); T0
+cluster <- makeCluster(detectCores()) #  - 1 # number of cores, convention to leave 1 core for OS
+registerDoParallel(cluster) # register the parallel processing
+# Create dataframe with proportion of each solid component
+XGboost_Linear_model_GS <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                                        data = training_set,
+                                        method = "xgbLinear",
+                                        trControl = adapt_control_grid,
+                                        verbose = F, metric = "RMSE", maximize = FALSE,
+                                        silent = 1, 
+                                        tuneGrid = XGboost_Linear_Grid
+                                        )
+
+stopCluster(cluster) # shut down the cluster 
+registerDoSEQ() #  force R to return to single threaded processing
+T1 <- Sys.time(); T1
+T1-T0
+
+XGboost_Linear_model_GS
+# xgb.importance(model = XGboost_Linear_model_GSfinalModel) %>%
+#   arrange(desc(Gain)) %>%
+#   ggplot(mapping = aes(x = reorder(Feature, Gain), y = Gain)) +
+#     geom_col(fill = "blue1", alpha = 0.8) +
+#     coord_flip() +
+#     labs(title = "XGboost_Linear: Variable Importance",
+#          x = "Variable",
+#          y = "Gain"
+#     ) +
+#     theme_bw() + theme(axis.text = element_text(size = 2), aspect.ratio = 2)
+# 
+# ggsave(filename = "Charts/variable_importance_XGboost_Linear_model_GS.png", device = "png", limitsize = F, scale = 2, dpi = "retina")
+
+# XGboost_Linear_model_GS$finalModel
+# plot(XGboost_Linear_model_GS)
+# summary(XGboost_Linear_model_GS$finalModel)
+# class(XGboost_Linear_model_GS$finalModel)
+
+variable_importance_XGboost_Linear_model_GS <- xgb.importance(model = XGboost_Linear_model_GS$finalModel)
+write.csv(x = variable_importance_XGboost_Linear_model_GS, file = paste0("Models/variable_importance_XGboost_Linear_model_GS","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".csv"))
+
+saveRDS(object = XGboost_Linear_model_GS, file = paste0("Models/XGboost_Linear_model_GS", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+saveRDS(object = XGboost_Linear_model_GS$finalModel, file = paste0("Models/XGboost_Linear_model_GS_", class(XGboost_Linear_model_GS$finalModel)[1],"_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+gc(verbose = F)
+```
+
+#### RS
+
+```{r message=FALSE, warning=FALSE, prompt=FALSE, error=FALSE}
+# install.packages("doParallel")
+library(xgboost, quietly = T, verbose = F); library(caret, quietly = T, verbose = F); library(parallel, quietly = T, verbose = F); library(doParallel); library(tictoc)
+
+T0 <- Sys.time(); T0
+cluster <- makeCluster(detectCores()) #  - 1 # number of cores, convention to leave 1 core for OS
+registerDoParallel(cluster) # register the parallel processing
+
+set.seed(1)
+XGboost_Linear_model_RS <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                          data = training_set, 
+                          method = "xgbLinear",
+                          trControl = adapt_control_random,
+                          verbose = F, metric = "RMSE", maximize = FALSE,
+                          silent = 1,
+                          tuneLength = 50
+                          # tuneGrid = XGboost_Linear_grid
+                          )
+
+stopCluster(cluster) # shut down the cluster 
+registerDoSEQ() #  force R to return to single threaded processing
+T1 <- Sys.time(); T1
+T1-T0
+
+library(broom, quietly = T, verbose = F)
+XGboost_Linear_model_RS
+# xgb.importance(model = XGboost_Linear_model_RS$finalModel) %>%
+#   arrange(desc(Gain)) %>%
+#   ggplot(mapping = aes(x = reorder(Feature, Gain), y = Gain)) +
+#     geom_col(fill = "blue1", alpha = 0.8) +
+#     coord_flip() +
+#     labs(title = "XGboost_Linear: Variable Importance",
+#          x = "Variable",
+#          y = "Gain"
+#     ) +
+#     theme_bw() + theme(axis.text = element_text(size = 2), aspect.ratio = 2)
+# 
+# ggsave(filename = "Charts/variable_importance_XGboost_Linear_model_RS.png", device = "png", limitsize = F, scale = 2, dpi = "retina")
+
+# XGboost_Linear_model_RS$finalModel
+# plot(XGboost_Linear_model_RS)
+# summary(XGboost_Linear_model_RS$finalModel)
+# class(XGboost_Linear_model_RS$finalModel)
+
+variable_importance_XGboost_Linear_model_RS <- xgb.importance(model = XGboost_Linear_model_RS$finalModel)
+write.csv(x = variable_importance_XGboost_Linear_model_RS, file = paste0("Models/variable_importance_XGboost_Linear_model_RS","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".csv"))
+
+saveRDS(object = XGboost_Linear_model_RS, file = paste0("Models/XGboost_Linear_model_RS", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+saveRDS(object = XGboost_Linear_model_RS$finalModel, file = paste0("Models/XGboost_Linear_model_RS_", class(XGboost_Linear_model_RS$finalModel)[1],"_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+gc(verbose = F)
+```
+
+
+### XGboost_Tree
+
+Train model using trees as learners.
+
+#### GA
+
+```{r}
+# Create custom function for assessing solutions
+eval_function_XGboost_Tree <- function(x1,x2,x3,x4,x5,x6,x7) {
+
+  suppressWarnings(
+  # Create dataframe with proportion of each solid component
+  XGboost_Tree_model_GA <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                          data = training_set,
+                          method = "xgbTree",
+                          trControl = train_control,
+                          verbose = FALSE, metric = "RMSE", maximize = FALSE,
+                          silent = 1, 
+                          tuneGrid = expand.grid(
+                                                nrounds = round(x1), # number of boosting iterations
+                                                max_depth = round(x2), # depth of the tree
+                                                eta = x3,  # step size shrinkage, low value means model is more robust to overfitting
+                                                gamma = x4, # controls regularization
+                                                colsample_bytree = x5, # fraction of variables supplied to a tree, default: 1, range: 0-1
+                                                min_child_weight = x6, # minimum number of observations required in a child node
+                                                subsample = x7 #, # fraction of number of observations supplied to a tree, default: 1, range: 0-1
+                                                # alpha =  1, # L1 Regularization (equivalent to Lasso Regression) on weights
+                                                # lambda =  0 # L2 Regularization (equivalent to ridge Regression) on weights
+                                                ) 
+                          )
+  )
+
+  return(-XGboost_Tree_model_GA$results$RMSE)
+
+}
+
+# eval_function(nrounds_min_max[1], max_depth_min_max[1], eta_min_max[1], gamma_min_max[1], colsample_bytree_min_max[1], min_child_weight_min_max[1], subsample_min_max[1])
+# eval_function(50, max_depth_min_max[2], eta_min_max[2], gamma_min_max[2], colsample_bytree_min_max[2], min_child_weight_min_max[2], subsample_min_max[2])
+```
+
+
+```{r}
+library(GA, quietly = T, verbose = F)
+
+# Define minimum and maximum values for each input
+nrounds_min_max <- c(10,1*10^3)
+max_depth_min_max <- c(1,100)
+eta_min_max <- c(10^-5, 0.5)
+gamma_min_max <- c(0,100)
+colsample_bytree_min_max <- c(10^-2,1)
+min_child_weight_min_max <- c(5,100)
+subsample_min_max <- c(10^-2,1)
+
+starting_point <- c(500, 50, 10^-3, 10, 10^-1, 50, 0.5)
+```
+
+
+```{r}
+pop_size <- 5
+max_iter <- 5
+T0 <- Sys.time(); T0
+
+custom_monitor <- function (object, digits = getOption("digits"), ...) {
+  fitness <- na.exclude(object@fitness)
+  sumryStat <- c(mean(fitness), max(fitness))
+  sumryStat <- format(sumryStat, digits = digits)
+    
+  cat(paste("GA | iter =", object@iter, "| Mean =", sumryStat[1], "| Best =", sumryStat[2], "\n", " | x1 = ", GA_model_XGboost_Linear@solution[1], "| x2 = ", GA_model_XGboost_Linear@solution[2], "| x3 = ", GA_model_XGboost_Linear@solution[3], "| x4 = ", GA_model_XGboost_Linear@solution[4]))
+  cat("\n")
+  flush.console()
+}
+
+library(parallel, quietly = T, verbose = F)
+n_cores <- detectCores() # -1
+# cluster <- makeCluster(n_cores) # number of cores, convention to leave 1 core for OS
+# registerDoParallel(cluster);  # register the parallel processing
+
+GA_model_XGboost_Tree <- GA::ga(type = "real-valued", 
+                                fitness = function(x) eval_function_XGboost_Tree(round(x[1]),round(x[2]),x[3],x[4],x[5],x[6],x[7]), 
+                                lower = c(nrounds_min_max[1], max_depth_min_max[1], eta_min_max[1], gamma_min_max[1], colsample_bytree_min_max[1], min_child_weight_min_max[1], subsample_min_max[1]),
+                                upper = c(nrounds_min_max[2], max_depth_min_max[2], eta_min_max[2], gamma_min_max[2], colsample_bytree_min_max[2], min_child_weight_min_max[2], subsample_min_max[2]),
+                                popSize = pop_size, 
+                                maxiter = max_iter, 
+                                keepBest = T, 
+                                monitor = custom_monitor,
+                                pmutation = 0.5,
+                                elitism = 0.3,
+                                suggestions = starting_point,
+                                parallel = n_cores,
+                                optim = F, 
+                                seed = 1
+                                )
+T1 <- Sys.time(); T1
+T1-T0
+# stopCluster(cluster) # shut down the cluster 
+# registerDoSEQ(); #  force R to return to single threaded processing
+
+summary(GA_model_XGboost_Tree)
+# plot(GA_model_XGboost_Tree)
+GA_model_XGboost_Tree@solution
+
+save(GA_model_XGboost_Tree, file = "Models/GA_model_XGboost_Tree.RData")
+write.csv(x = GA_model_XGboost_Tree@solution, file = paste0("Models/GA_model_XGboost_Tree_Solution", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"), ".csv"))
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# install.packages("xgboost")
+library(xgboost); library(plyr)
+XGboost_Tree_grid <- expand.grid(
+                                nrounds = round(GA_model_XGboost_Tree@solution[1]), # number of boosting iterations
+                                max_depth = round(GA_model_XGboost_Tree@solution[2]), # depth of the tree
+                                eta = GA_model_XGboost_Tree@solution[3],  # step size shrinkage, low value means model is more robust to overfitting
+                                gamma = GA_model_XGboost_Tree@solution[4], # controls regularization
+                                colsample_bytree = GA_model_XGboost_Tree@solution[5], # fraction of variables supplied to a tree, default: 1, range: 0-1
+                                min_child_weight = GA_model_XGboost_Tree@solution[6], # minimum number of observations required in a child node
+                                subsample = GA_model_XGboost_Tree@solution[7] #, # fraction of number of observations supplied to a tree, default: 1, range: 0-1
+                                # alpha =  1, # L1 Regularization (equivalent to Lasso Regression) on weights
+                                # lambda =  0 # L2 Regularization (equivalent to ridge Regression) on weights
+                                ) 
+
+```
+
+
+```{r message=FALSE, warning=FALSE, prompt=FALSE, error=FALSE}
+# install.packages("doParallel")
+library(xgboost, quietly = T, verbose = F); library(caret, quietly = T, verbose = F); library(parallel, quietly = T, verbose = F); library(doParallel); library(tictoc)
+
+T0 <- Sys.time(); T0
+cluster <- makeCluster(detectCores()) #  - 1 # number of cores, convention to leave 1 core for OS
+registerDoParallel(cluster) # register the parallel processing
+
+set.seed(1)
+XGboost_Tree_model_GA <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                          data = training_set, 
+                          method = "xgbTree",
+                          trControl = train_control,
+                          verbose = F, metric = "RMSE", maximize = FALSE,
+                          silent = 1,
+                          # tuneLength = 1
+                          tuneGrid = XGboost_Tree_grid
+                          )
+
+stopCluster(cluster) # shut down the cluster 
+registerDoSEQ() #  force R to return to single threaded processing
+T1 <- Sys.time(); T1
+T1-T0
+
+library(broom, quietly = T, verbose = F)
+XGboost_Tree_model_GA
+# xgb.importance(model = XGboost_Tree_model_GAfinalModel) %>%
+#   arrange(desc(Gain)) %>%
+#   ggplot(mapping = aes(x = reorder(Feature, Gain), y = Gain)) +
+#     geom_col(fill = "blue1", alpha = 0.8) +
+#     coord_flip() +
+#     labs(title = "XGboost_Tree: Variable Importance",
+#          x = "Variable",
+#          y = "Gain"
+#     ) +
+#     theme_bw() + theme(axis.text = element_text(size = 2), aspect.ratio = 2)
+# 
+# ggsave(filename = "Charts/variable_importance_XGboost_Tree_model_GA.png", device = "png", limitsize = F, scale = 2, dpi = "retina")
+
+# XGboost_Tree_model_GA$finalModel
+# plot(XGboost_Tree_model_GA)
+# summary(XGboost_Tree_model_GA$finalModel)
+# class(XGboost_Tree_model_GA$finalModel)
+
+variable_importance_XGboost_Tree_model_GA <- xgb.importance(model = XGboost_Tree_model_GA$finalModel)
+write.csv(x = variable_importance_XGboost_Tree_model_GA, file = paste0("Models/variable_importance_XGboost_Tree_model_GA","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".csv"))
+
+saveRDS(object = XGboost_Tree_model_GA, file = paste0("Models/XGboost_Tree_model_GA", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+saveRDS(object = XGboost_Tree_model_GA$finalModel, file = paste0("Models/XGboost_Tree_model_GA_", class(XGboost_Tree_model_GA$finalModel)[1],"_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+gc(verbose = F)
+```
+
+#### RS
+
+```{r message=FALSE, warning=FALSE, prompt=FALSE, error=FALSE}
+# install.packages("doParallel")
+library(xgboost, quietly = T, verbose = F); library(caret, quietly = T, verbose = F); library(parallel, quietly = T, verbose = F); library(doParallel); library(tictoc)
+
+T0 <- Sys.time(); T0
+cluster <- makeCluster(detectCores()) #  - 1 # number of cores, convention to leave 1 core for OS
+registerDoParallel(cluster) # register the parallel processing
+
+set.seed(1)
+XGboost_Tree_model_RS <- caret::train(final_rinse_total_turbidity_liter_exp ~., 
+                          data = training_set, 
+                          method = "xgbTree",
+                          trControl = adapt_control_random,
+                          verbose = F, metric = "RMSE", maximize = FALSE,
+                          silent = 1,
+                          tuneLength = 10
+                          # tuneGrid = XGboost_Tree_grid
+                          )
+
+stopCluster(cluster) # shut down the cluster 
+registerDoSEQ() #  force R to return to single threaded processing
+T1 <- Sys.time(); T1
+T1-T0
+
+library(broom, quietly = T, verbose = F)
+XGboost_Tree_model_RS
+# xgb.importance(model = XGboost_Tree_model_RS$finalModel) %>%
+#   arrange(desc(Gain)) %>%
+#   ggplot(mapping = aes(x = reorder(Feature, Gain), y = Gain)) +
+#     geom_col(fill = "blue1", alpha = 0.8) +
+#     coord_flip() +
+#     labs(title = "XGboost_Tree: Variable Importance",
+#          x = "Variable",
+#          y = "Gain"
+#     ) +
+#     theme_bw() + theme(axis.text = element_text(size = 2), aspect.ratio = 2)
+# 
+# ggsave(filename = "Charts/variable_importance_XGboost_Tree_model_RS.png", device = "png", limitsize = F, scale = 2, dpi = "retina")
+
+# XGboost_Tree_model_RS$finalModel
+# plot(XGboost_Tree_model_RS)
+# summary(XGboost_Tree_model_RS$finalModel)
+# class(XGboost_Tree_model_RS$finalModel)
+
+variable_importance_XGboost_Tree_model_RS <- xgb.importance(model = XGboost_Tree_model_RS$finalModel)
+write.csv(x = variable_importance_XGboost_Tree_model_RS, file = paste0("Models/variable_importance_XGboost_Tree_model_RS","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".csv"))
+
+saveRDS(object = XGboost_Tree_model_RS, file = paste0("Models/XGboost_Tree_model_RS", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+saveRDS(object = XGboost_Tree_model_RS$finalModel, file = paste0("Models/XGboost_Tree_model_RS_", class(XGboost_Tree_model_RS$finalModel)[1],"_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".rds"))
+gc(verbose = F)
+```
+
+***
+
+## Validation Set Predictions
+
+```{r}
+MAPE <- function(actual, predicted) {
+  
+  return(mean(abs(actual - predicted)/max(actual, log(290000)), na.rm = T))
+}
+```
+
+
+
+```{r}
+library(ggplot2, quietly = T, verbose = F)
+
+# Function to plot observed vs predicted values
+predicted_observed_plot <- function(predicted_val, observed_val, residual_val, model_name = "", R_squared, ...) {
+  
+  plot <- ggplot(mapping = aes(x = predicted_val, y = observed_val, col = abs(residual_val))) +
+  geom_point(alpha = 0.9, size = 2) +
+  geom_abline(intercept = 0, slope = 1) +
+    # facet_wrap(~) +
+    labs(title = paste0(model_name, "\nPredicted vs Observed: Test Set"),
+         subtitle = paste0("R-squared: ", R_squared),
+         x = "Predicted",
+         y = "Observed",
+         col = "Absolute Deviation") +
+  theme_bw() +
+  theme(aspect.ratio = 0.9, panel.grid.minor.x = element_blank(), legend.title = element_text(size = 10, face="bold"), legend.text = element_text(size = 9), plot.title = element_text(size=12, face="bold"), axis.title=element_text(size=10, face="bold"), axis.text.x = element_text(angle = 0), legend.position = "none") +
+  # scale_x_continuous(expand = c(0,0)) +
+  # scale_y_continuous(expand = c(0,0)) + 
+  coord_equal() + scale_color_viridis_c(direction = -1)
+
+  return (plot)
+}
+
+# Function to plot residuals
+residuals_plot <- function(predicted_val, residual_val, model_name = "", MAPE, RMSE, ...) {
+
+  plot <- ggplot(mapping = aes(x = predicted_val, y = residual_val, col = abs(residual_val))) +
+  geom_point(alpha = 0.9, size = 2) +
+  geom_abline(intercept = 0, slope = 0) +
+    # facet_wrap(~) +
+    labs(
+       title = paste0(model_name, "\nResiduals: Test Set"),
+       subtitle = paste0("RMSE: ", RMSE, ", MAPE: ", round(MAPE, 3)),
+       x = "Predicted",
+       y = "Residual",
+       col = "Absolute Deviation"
+       ) +
+  theme_bw() +
+  theme(aspect.ratio = 0.9, panel.grid.minor.x = element_blank(), legend.title = element_text(size = 10, face="bold"), legend.text = element_text(size = 9), plot.title = element_text(size=12, face="bold"), axis.title=element_text(size=10, face="bold"), axis.text.x = element_text(angle = 0), legend.position = "none") +
+  # scale_x_continuous(expand = c(0,0)) +
+  # scale_y_continuous(expand = c(0,0)) +
+  coord_equal() + scale_color_viridis_c(direction = -1)
+
+  return (plot)
+}
+```
+
+### XGBoost Linear
+
+#### GS
+
+```{r fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+# ------------------------------------------
+# XGboost_Linear
+# Make predictions on test set
+test_set$XGboost_Linear_GS <- predict(XGboost_Linear_model_GS, test_set)
+# Calculate Residuals on test set
+test_set$XGboost_Linear_GS_residual <- test_set$final_rinse_total_turbidity_liter_exp - test_set$XGboost_Linear_GS
+
+# Calculate test set R-squared, RMSE, MAPE
+R_squared <- round(cor(test_set$XGboost_Linear_GS, test_set$final_rinse_total_turbidity_liter_exp), 4)
+RMSE <- signif(RMSE(pred = test_set$XGboost_Linear_GS, obs = test_set$final_rinse_total_turbidity_liter_exp, na.rm = T), 6)
+MAPE <- signif(MAPE(predicted = test_set$XGboost_Linear_GS, actual = test_set$final_rinse_total_turbidity_liter_exp), 6)
+
+# Plot predicted vs observed values and residuals
+XGboost_Linear_GS_pred_obs <- predicted_observed_plot(predicted_val = test_set$XGboost_Linear_GS, observed_val = test_set$final_rinse_total_turbidity_liter_exp, residual_val = test_set$XGboost_Linear_GS_residual, R_squared = R_squared, model_name = "XGboost_Linear_GS")
+XGboost_Linear_GS_residuals <- residuals_plot(predicted_val = test_set$XGboost_Linear_GS, observed_val = test_set$final_rinse_total_turbidity_liter_exp, residual_val = test_set$XGboost_Linear_GS_residual, MAPE = MAPE, RMSE = RMSE, model_name = "XGboost_Linear_GS")
+
+# gridExtra::grid.arrange(XGboost_Tree_pred_obs, XGboost_Tree_residuals, ncol = 2)
+g <- gridExtra::grid.arrange(XGboost_Linear_GS_pred_obs, XGboost_Linear_GS_residuals, ncol = 2)
+# g
+
+ggsave(plot = g, filename = paste0("Charts/Pred_Obs_Resids_XGboost_Linear_GS_model","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".png"), device = "png", limitsize = F, scale = 1, dpi = "print")
+rm(g)
+```
+
+#### RS
+
+```{r fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+# ------------------------------------------
+# XGboost_Linear
+# Make predictions on test set
+test_set$XGboost_Linear_RS <- predict(XGboost_Linear_model_RS, test_set)
+# Calculate Residuals on test set
+test_set$XGboost_Linear_RS_residual <- test_set$final_rinse_total_turbidity_liter_exp - test_set$XGboost_Linear_RS
+
+# Calculate test set R-squared, RMSE, MAPE
+R_squared <- round(cor(test_set$XGboost_Linear_RS, test_set$final_rinse_total_turbidity_liter_exp), 4)
+RMSE <- signif(RMSE(pred = test_set$XGboost_Linear_RS, obs = test_set$final_rinse_total_turbidity_liter_exp, na.rm = T), 6)
+MAPE <- signif(MAPE(predicted = test_set$XGboost_Linear_RS, actual = test_set$final_rinse_total_turbidity_liter_exp), 6)
+
+# Plot predicted vs observed values and residuals
+XGboost_Linear_RS_pred_obs <- predicted_observed_plot(predicted_val = test_set$XGboost_Linear_RS, observed_val = test_set$final_rinse_total_turbidity_liter_exp, residual_val = test_set$XGboost_Linear_RS_residual, R_squared = R_squared, model_name = "XGboost_Linear_RS")
+XGboost_Linear_RS_residuals <- residuals_plot(predicted_val = test_set$XGboost_Linear_RS, observed_val = test_set$final_rinse_total_turbidity_liter_exp, residual_val = test_set$XGboost_Linear_RS_residual, MAPE = MAPE, RMSE = RMSE, model_name = "XGboost_Linear_RS")
+
+# gridExtra::grid.arrange(XGboost_Tree_pred_obs, XGboost_Tree_residuals, ncol = 2)
+g <- gridExtra::grid.arrange(XGboost_Linear_RS_pred_obs, XGboost_Linear_RS_residuals, ncol = 2)
+# g
+
+ggsave(plot = g, filename = paste0("Charts/Pred_Obs_Resids_XGboost_Linear_RS_model","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".png"), device = "png", limitsize = F, scale = 1, dpi = "print")
+rm(g)
+```
+
+#### GA
+
+```{r fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+# ------------------------------------------
+# XGboost_Linear
+# Make predictions on test set
+test_set$XGboost_Linear_GA <- predict(XGboost_Linear_model_GA, test_set)
+# Calculate Residuals on test set
+test_set$XGboost_Linear_GA_residual <- test_set$final_rinse_total_turbidity_liter_exp - test_set$XGboost_Linear_GA
+
+# Calculate test set R-squared, RMSE, MAPE
+R_squared <- round(cor(test_set$XGboost_Linear_GA, test_set$final_rinse_total_turbidity_liter_exp), 4)
+RMSE <- signif(RMSE(pred = test_set$XGboost_Linear_GA, obs = test_set$final_rinse_total_turbidity_liter_exp, na.rm = T), 6)
+MAPE <- signif(MAPE(predicted = test_set$XGboost_Linear_GA, actual = test_set$final_rinse_total_turbidity_liter_exp), 6)
+
+# Plot predicted vs observed values and residuals
+XGboost_Linear_GA_pred_obs <- predicted_observed_plot(predicted_val = test_set$XGboost_Linear_GA, observed_val = test_set$final_rinse_total_turbidity_liter_exp, residual_val = test_set$XGboost_Linear_GA_residual, R_squared = R_squared, model_name = "XGboost_Linear_GA")
+XGboost_Linear_GA_residuals <- residuals_plot(predicted_val = test_set$XGboost_Linear_GA, observed_val = test_set$final_rinse_total_turbidity_liter_exp, residual_val = test_set$XGboost_Linear_GA_residual, MAPE = MAPE, RMSE = RMSE, model_name = "XGboost_Linear_GA")
+
+# gridExtra::grid.arrange(XGboost_Tree_pred_obs, XGboost_Tree_residuals, ncol = 2)
+g <- gridExtra::grid.arrange(XGboost_Linear_GA_pred_obs, XGboost_Linear_GA_residuals, ncol = 2)
+# g
+
+ggsave(plot = g, filename = paste0("Charts/Pred_Obs_Resids_XGboost_Linear_GA_model","_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"),".png"), device = "png", limitsize = F, scale = 1, dpi = "print")
+rm(g)
+```
+
+
+## Test Set Predictions
+
+
+```{r}
+library(readr)
+# Import Data
+raw_test <- read_csv(file = "test_values.zip")
+
+test <- raw_test
+suppressPackageStartupMessages(library(tidyverse, quietly = T, verbose = F))
+# Process Data
+test_data_final <- pre_process_data(test, add_labels = F, nzv = F)
+
+test_data_final <- dplyr::left_join(x = test_data_final, y = recipe_metadata, "process_id")
+
+# test_data_final$process_id <- NULL
+```
+
+
+```{r}
+test_predictions <- predict(object = XGboost_Linear_model_GA, newdata = test_data_final) # [!]
+summary(test_predictions[test_predictions < 0])
+print(paste(length(test_predictions[test_predictions < 0])/length(test_predictions)*100, "% predictions below zero"))
+test_predictions[test_predictions < 0] <- min(training_data_final$final_rinse_total_turbidity_liter_exp)
+
+par(mfrow = c(1, 2))
+hist(test_predictions)
+hist(training_data_final$final_rinse_total_turbidity_liter_exp)
+
+par(mfrow = c(1, 2))
+hist(exp(test_predictions))
+hist(exp(training_data_final$final_rinse_total_turbidity_liter_exp))
+
+summary(training_data_final$final_rinse_total_turbidity_liter_exp)
+summary(test_predictions)
+
+summary(exp(training_data_final$final_rinse_total_turbidity_liter_exp))
+summary(exp(test_predictions))
+
+nrow(test_data_final) == length(test_predictions)
+
+submission_template <- read.csv(file = "submission_format.csv")
+mean(x = submission_template$process_id == test_data_final$process_id)
+
+test_predictions_final <- data.frame(process_id = test_data_final$process_id, final_rinse_total_turbidity_liter = exp(test_predictions))
+write.csv(test_predictions_final, file = paste0("Predictions/test_predictions_final", "_iter", iteration, "_", stringr::str_remove_all(Sys.time(), pattern = ":"), ".csv"), row.names = F)
+
+rm(raw_test)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
